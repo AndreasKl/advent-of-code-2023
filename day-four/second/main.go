@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -15,29 +14,58 @@ func main() {
 		log.Fatal(err)
 	}
 
-	scratchCardInputLine := strings.Split(string(content), "\n")
-	pileOfCardsPoints := calculatePointsFromPileOfCards(scratchCardInputLine)
+	scratchCardInputLines := strings.Split(string(content), "\n")
 
-	fmt.Printf("Pile of cards points: %d\n", pileOfCardsPoints)
+	var scratchCards scratchCards
+	for _, inputLine := range scratchCardInputLines {
+		scratchCards = append(scratchCards, parse(inputLine))
+	}
+
+	for index, c := range scratchCards {
+		if c.points() == 0 {
+			continue
+		}
+
+		start := keepInBounds(index+1, len(scratchCards))
+		end := keepInBounds(index+1+c.points(), len(scratchCards))
+
+		toIncrease := scratchCards[start:end]
+		for i := 0; i < c.cardCount; i++ {
+			for _, v := range toIncrease {
+				v.increaseCardCount()
+			}
+		}
+	}
+
+	fmt.Printf("Overall card count: %d\n", scratchCards.overallCardCount())
 }
 
-func calculatePointsFromPileOfCards(scratchCardInputLine []string) int {
-	pileOfCardsPoints := 0
-	for _, scratchCard := range scratchCardInputLine {
-		sc := parse(scratchCard)
-		pileOfCardsPoints += sc.points()
+func keepInBounds(index int, bound int) int {
+	if index > bound {
+		return bound
 	}
-	return pileOfCardsPoints
+	return index
+}
+
+type scratchCards []*scratchCard
+
+func (s scratchCards) overallCardCount() int {
+	sum := 0
+	for _, c := range s {
+		sum += c.cardCount
+	}
+	return sum
 }
 
 type scratchCard struct {
 	game           string
 	winningNumbers []int
 	numbers        []int
+	cardCount      int
 }
 
-func (s scratchCard) points() int {
-	count := -1
+func (s *scratchCard) points() int {
+	count := 0
 	for _, number := range s.numbers {
 		for _, winningNumber := range s.winningNumbers {
 			if number == winningNumber {
@@ -46,10 +74,14 @@ func (s scratchCard) points() int {
 
 		}
 	}
-	return int(math.Pow(2.0, float64(count)))
+	return count
 }
 
-func parse(scratchCardInputLine string) scratchCard {
+func (s *scratchCard) increaseCardCount() {
+	s.cardCount++
+}
+
+func parse(scratchCardInputLine string) *scratchCard {
 	gameAndNumbers := strings.Split(scratchCardInputLine, ":")
 	game := gameAndNumbers[0]
 	numbersAndWinningNumbers := strings.Split(gameAndNumbers[1], "|")
@@ -57,10 +89,11 @@ func parse(scratchCardInputLine string) scratchCard {
 	winningNumbers := strings.TrimSpace(numbersAndWinningNumbers[0])
 	numbers := strings.TrimSpace(numbersAndWinningNumbers[1])
 
-	return scratchCard{
+	return &scratchCard{
 		game:           strings.TrimSpace(game),
 		winningNumbers: parseNumbers(winningNumbers),
 		numbers:        parseNumbers(numbers),
+		cardCount:      1,
 	}
 
 }
